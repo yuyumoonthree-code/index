@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RANDOM PICK · 4→1</title>
+<style>
+  :root{
+    --bg:#0a0e17;--panel:#111826;--line:#1d2840;
+    --cyan:#22e6c8;--cyan-dim:#0e6b5f;--blue:#3a8dff;
+    --text:#dbe6f5;--text-dim:#5f6f8a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:"SF Mono",ui-monospace,"Cascadia Code",Consolas,"PingFang SC",sans-serif;
+    background:radial-gradient(140% 90% at 50% -20%, #141d30 0%, var(--bg) 55%),var(--bg);
+    color:var(--text);min-height:100vh;
+    display:flex;align-items:center;justify-content:center;padding:28px 16px;
+  }
+  .wrap{width:100%;max-width:440px}
+  header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+  .title{font-size:30px;font-weight:800;color:var(--text)}
+  .title b{color:var(--cyan);text-shadow:0 0 14px rgba(34,230,200,.6)}
+  .tag{font-size:11px;letter-spacing:.3em;color:var(--text-dim)}
+  .mode{font-size:12px;letter-spacing:.25em;color:var(--cyan-dim);margin-bottom:20px}
+
+  .names{display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
+  .row{display:flex;align-items:center;gap:10px}
+  .id{font-size:12px;color:var(--cyan-dim);width:26px;flex:0 0 26px}
+  .row input{flex:1;font-family:inherit;font-size:15px;color:var(--text);
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:9px 12px;transition:border-color .15s, box-shadow .15s}
+  .row input:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(34,230,200,.12)}
+
+  .roster{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:16px}
+  .chip{font-size:14px;color:var(--text);background:var(--panel);
+    border:1px solid var(--line);border-radius:20px;padding:6px 16px}
+
+  .screen{position:relative;height:120px;border-radius:14px;
+    background:linear-gradient(180deg,#0c1320,#0a0f1a);border:1px solid var(--line);
+    overflow:hidden;display:flex;align-items:center;justify-content:center;
+    box-shadow:inset 0 0 40px rgba(0,0,0,.5)}
+  .screen::before{content:"";position:absolute;inset:0;
+    background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(58,141,255,.05) 3px 4px);pointer-events:none}
+  .screen.live::after{content:"";position:absolute;top:0;left:-40%;width:40%;height:100%;
+    background:linear-gradient(90deg,transparent,rgba(34,230,200,.18),transparent);animation:sweep .35s linear infinite}
+  @keyframes sweep{to{left:120%}}
+  .display{font-size:42px;font-weight:800;color:var(--cyan);
+    text-shadow:0 0 24px rgba(34,230,200,.55);z-index:1;
+    max-width:90%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .display.idle{color:var(--text-dim);text-shadow:none;font-size:22px;letter-spacing:.2em}
+  .display.locked{animation:pop .25s ease}
+  @keyframes pop{0%{transform:scale(.7);opacity:.4}60%{transform:scale(1.12)}100%{transform:scale(1)}}
+  .status{position:absolute;bottom:8px;left:12px;font-size:10px;letter-spacing:.25em;color:var(--text-dim);z-index:1}
+  .status b{color:var(--cyan)}
+
+  .btn{width:100%;margin-top:18px;font-family:inherit;font-size:16px;font-weight:700;
+    letter-spacing:.25em;color:#04140f;background:linear-gradient(90deg,var(--cyan),var(--blue));
+    border:none;border-radius:10px;padding:15px;cursor:pointer;
+    box-shadow:0 0 22px rgba(34,230,200,.3);transition:transform .08s,filter .15s}
+  .btn:hover{filter:brightness(1.1)}
+  .btn:active{transform:translateY(1px)}
+  .btn:disabled{filter:grayscale(.7) brightness(.7);cursor:not-allowed;box-shadow:none}
+  .btn.ghost{background:none;color:var(--text-dim);box-shadow:none;font-weight:400;
+    letter-spacing:.15em;font-size:13px;padding:10px;margin-top:10px}
+  .btn.ghost:hover{color:var(--cyan);filter:none}
+
+  .linkbox{margin-top:18px;display:none}
+  .linkbox.show{display:block}
+  .linkbox textarea{width:100%;height:70px;resize:none;font-family:inherit;font-size:12px;
+    color:var(--cyan);background:var(--panel);border:1px solid var(--cyan-dim);
+    border-radius:10px;padding:12px;line-height:1.5}
+  .hint{font-size:12px;color:var(--text-dim);line-height:1.7;margin-top:12px;letter-spacing:.05em}
+  .hint b{color:var(--cyan)}
+  footer{margin-top:16px;font-size:11px;color:var(--text-dim);letter-spacing:.1em;text-align:center}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title">RANDOM<b>·</b>PICK</div>
+      <div class="tag">4 → 1</div>
+    </header>
+
+    <!-- 发起人:建立这一轮 -->
+    <section id="setup">
+      <div class="mode">建立这一轮</div>
+      <div class="names" id="names"></div>
+      <button class="btn" id="makeBtn">生成本轮链接</button>
+      <div class="linkbox" id="linkbox">
+        <textarea id="linkText" readonly></textarea>
+        <button class="btn" id="copyBtn" style="margin-top:8px">复制链接</button>
+        <div class="hint">把这条链接发到群里。<b>四个人各自打开、各自点开签,看到的结果完全一致。</b><br>想重新随机就再点一次"生成本轮链接"。</div>
+      </div>
+    </section>
+
+    <!-- 参与者:开签 -->
+    <section id="draw" style="display:none">
+      <div class="mode">本轮 · 四人结果一致</div>
+      <div class="roster" id="roster"></div>
+      <div class="screen" id="screen">
+        <div class="display idle" id="display">READY</div>
+        <div class="status" id="status">STATUS · <b>IDLE</b></div>
+      </div>
+      <button class="btn" id="drawBtn">开　签</button>
+      <button class="btn ghost" id="newBtn">← 自己建一轮</button>
+    </section>
+
+    <footer>纯前端 · 免费托管 · 刷新即重置</footer>
+  </div>
+
+<script>
+  // —— 字符串确定性哈希(同样的输入 → 同样的数字) ——
+  function hashStr(s){let h=1779033703^s.length;
+    for(let i=0;i<s.length;i++){h=Math.imul(h^s.charCodeAt(i),3432918353);h=h<<13|h>>>19;}
+    return (h^h>>>16)>>>0;}
+
+  function pickWinner(names,seed){return names[hashStr(seed+'|'+names.join('|'))%names.length];}
+
+  function readRound(){
+    if(!location.hash || location.hash.length<2) return null;
+    try{return JSON.parse(decodeURIComponent(location.hash.slice(1)));}catch(e){return null;}
+  }
+
+  const setupEl=document.getElementById("setup");
+  const drawEl=document.getElementById("draw");
+  const round=readRound();
+
+  if(round && round.n && round.s){ initDraw(round); } else { initSetup(); }
+
+  // ===== 发起人界面 =====
+  function initSetup(){
+    setupEl.style.display="block";drawEl.style.display="none";
+    const box=document.getElementById("names");
+    ["01","02","03","04"].forEach((d,i)=>{
+      const r=document.createElement("div");r.className="row";
+      r.innerHTML=`<span class="id">[${i+1}]</span><input type="text" maxlength="10" value="${d}" placeholder="player_${i+1}">`;
+      box.appendChild(r);
+    });
+    const makeBtn=document.getElementById("makeBtn");
+    const linkbox=document.getElementById("linkbox");
+    const linkText=document.getElementById("linkText");
+    const copyBtn=document.getElementById("copyBtn");
+
+    makeBtn.addEventListener("click",()=>{
+      const names=[...box.querySelectorAll("input")].map(i=>i.value.trim()).filter(Boolean);
+      if(names.length<2){alert("至少填两个名字");return;}
+      const seed=Math.random().toString(36).slice(2,10)+Date.now().toString(36);
+      const base=location.origin+location.pathname;
+      const link=base+"#"+encodeURIComponent(JSON.stringify({n:names,s:seed}));
+      linkText.value=link;linkbox.classList.add("show");
+      makeBtn.textContent="重新生成本轮链接";
+    });
+
+    copyBtn.addEventListener("click",async()=>{
+      try{await navigator.clipboard.writeText(linkText.value);}
+      catch(e){linkText.select();document.execCommand("copy");}
+      copyBtn.textContent="已复制 ✓";
+      setTimeout(()=>copyBtn.textContent="复制链接",1500);
+    });
+  }
+
+  // ===== 参与者界面 =====
+  function initDraw(r){
+    setupEl.style.display="none";drawEl.style.display="block";
+    const names=r.n, seed=r.s;
+    const roster=document.getElementById("roster");
+    names.forEach(n=>{const c=document.createElement("span");c.className="chip";c.textContent=n;roster.appendChild(c);});
+
+    const screen=document.getElementById("screen");
+    const display=document.getElementById("display");
+    const status=document.getElementById("status");
+    const btn=document.getElementById("drawBtn");
+    const winner=pickWinner(names,seed);  // 各台手机算出的中选者都一样
+
+    btn.addEventListener("click",()=>{
+      btn.disabled=true;screen.classList.add("live");
+      display.className="display";status.innerHTML='STATUS · <b>SCANNING</b>';
+      let t=0,interval=40;
+      const tick=()=>{
+        display.textContent=names[Math.floor(Math.random()*names.length)];
+        t+=interval;
+        if(t<650){setTimeout(tick,interval);}
+        else if(interval<160){interval+=28;setTimeout(tick,interval);}
+        else{
+          display.textContent=winner;display.classList.add("locked");
+          screen.classList.remove("live");
+          status.innerHTML='RESULT · <b>'+winner+'</b>';
+          btn.textContent="已开签";
+        }
+      };
+      tick();
+    });
+
+    document.getElementById("newBtn").addEventListener("click",()=>{
+      location.href=location.origin+location.pathname;  // 清掉链接参数,回到建立界面
+    });
+  }
+</script>
+</body>
+</html>
