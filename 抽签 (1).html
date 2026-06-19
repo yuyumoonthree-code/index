@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RANDOM PICK · 4→1</title>
+<style>
+  :root{
+    --bg:#0a0e17;
+    --panel:#111826;
+    --line:#1d2840;
+    --cyan:#22e6c8;
+    --cyan-dim:#0e6b5f;
+    --blue:#3a8dff;
+    --text:#dbe6f5;
+    --text-dim:#5f6f8a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:"SF Mono",ui-monospace,"Cascadia Code",Consolas,"PingFang SC",sans-serif;
+    background:
+      radial-gradient(140% 90% at 50% -20%, #141d30 0%, var(--bg) 55%),
+      var(--bg);
+    color:var(--text);min-height:100vh;
+    display:flex;align-items:center;justify-content:center;padding:28px 16px;
+  }
+  .wrap{width:100%;max-width:440px}
+
+  header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:22px}
+  .title{font-size:30px;font-weight:800;letter-spacing:.04em;color:var(--text)}
+  .title b{color:var(--cyan);text-shadow:0 0 14px rgba(34,230,200,.6)}
+  .tag{font-size:11px;letter-spacing:.3em;color:var(--text-dim)}
+
+  .names{display:flex;flex-direction:column;gap:8px;margin-bottom:22px}
+  .row{display:flex;align-items:center;gap:10px}
+  .id{font-size:12px;color:var(--cyan-dim);width:26px;flex:0 0 26px}
+  .row input{
+    flex:1;font-family:inherit;font-size:15px;color:var(--text);
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:9px 12px;transition:border-color .15s, box-shadow .15s;
+  }
+  .row input:focus{outline:none;border-color:var(--cyan);
+    box-shadow:0 0 0 3px rgba(34,230,200,.12)}
+
+  /* 显示屏 */
+  .screen{
+    position:relative;height:120px;border-radius:14px;
+    background:linear-gradient(180deg,#0c1320,#0a0f1a);
+    border:1px solid var(--line);overflow:hidden;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:inset 0 0 40px rgba(0,0,0,.5);
+  }
+  .screen::before{ /* 扫描线 */
+    content:"";position:absolute;inset:0;
+    background:repeating-linear-gradient(0deg,
+      transparent 0 3px, rgba(58,141,255,.05) 3px 4px);
+    pointer-events:none;
+  }
+  .screen.live::after{ /* 流光 */
+    content:"";position:absolute;top:0;left:-40%;width:40%;height:100%;
+    background:linear-gradient(90deg,transparent,rgba(34,230,200,.18),transparent);
+    animation:sweep .35s linear infinite;
+  }
+  @keyframes sweep{to{left:120%}}
+  .display{
+    font-size:46px;font-weight:800;letter-spacing:.02em;
+    color:var(--cyan);text-shadow:0 0 24px rgba(34,230,200,.55);
+    z-index:1;transition:transform .12s;
+  }
+  .display.idle{color:var(--text-dim);text-shadow:none;font-size:22px;letter-spacing:.2em}
+  .display.locked{animation:pop .25s ease}
+  @keyframes pop{0%{transform:scale(.7);opacity:.4}60%{transform:scale(1.12)}100%{transform:scale(1)}}
+  .status{
+    position:absolute;bottom:8px;left:12px;font-size:10px;letter-spacing:.25em;
+    color:var(--text-dim);z-index:1;
+  }
+  .status b{color:var(--cyan)}
+
+  .btn{
+    width:100%;margin-top:18px;font-family:inherit;
+    font-size:16px;font-weight:700;letter-spacing:.25em;
+    color:#04140f;background:linear-gradient(90deg,var(--cyan),var(--blue));
+    border:none;border-radius:10px;padding:15px;cursor:pointer;
+    box-shadow:0 0 22px rgba(34,230,200,.3);transition:transform .08s,filter .15s;
+  }
+  .btn:hover{filter:brightness(1.1)}
+  .btn:active{transform:translateY(1px)}
+  .btn:disabled{filter:grayscale(.7) brightness(.7);cursor:not-allowed;box-shadow:none}
+
+  footer{margin-top:14px;font-size:11px;color:var(--text-dim);letter-spacing:.15em;text-align:center}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title">RANDOM<b>·</b>PICK</div>
+      <div class="tag">4 → 1</div>
+    </header>
+
+    <div class="names" id="names"></div>
+
+    <div class="screen" id="screen">
+      <div class="display idle" id="display">READY</div>
+      <div class="status" id="status">STATUS · <b>IDLE</b></div>
+    </div>
+
+    <button class="btn" id="btn">START</button>
+    <footer>点击名字可改 · 留空者不参与 · 等概率</footer>
+  </div>
+
+<script>
+  const defaults=["01","02","03","04"];
+  const box=document.getElementById("names");
+  defaults.forEach((d,i)=>{
+    const r=document.createElement("div");r.className="row";
+    r.innerHTML=`<span class="id">[${i+1}]</span>
+      <input type="text" maxlength="10" value="${d}" placeholder="player_${i+1}">`;
+    box.appendChild(r);
+  });
+
+  const screen=document.getElementById("screen");
+  const display=document.getElementById("display");
+  const status=document.getElementById("status");
+  const btn=document.getElementById("btn");
+
+  const names=()=>[...box.querySelectorAll("input")].map(i=>i.value.trim()).filter(Boolean);
+
+  btn.addEventListener("click",()=>{
+    const list=names();
+    if(!list.length){display.className="display idle";display.textContent="EMPTY";return;}
+    btn.disabled=true;screen.classList.add("live");
+    display.className="display";status.innerHTML='STATUS · <b>SCANNING</b>';
+
+    let t=0,interval=40;
+    const tick=()=>{
+      display.textContent=list[Math.floor(Math.random()*list.length)];
+      t+=interval;
+      if(t<650){            // 快速滚动阶段
+        setTimeout(tick,interval);
+      }else if(interval<160){ // 减速锁定
+        interval+=28;setTimeout(tick,interval);
+      }else{
+        const win=list[Math.floor(Math.random()*list.length)];
+        display.textContent=win;
+        display.classList.add("locked");
+        screen.classList.remove("live");
+        status.innerHTML='RESULT · <b>'+win+'</b>';
+        btn.disabled=false;btn.textContent="RESTART";
+      }
+    };
+    tick();
+  });
+</script>
+</body>
+</html>
